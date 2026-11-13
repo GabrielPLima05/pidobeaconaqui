@@ -1,0 +1,8 @@
+beacon.db
+beacon.db-*
+exportacoes/
+__pycache__/
+*.pyc
+.venv/
+.env
+*.log

@@ -172,8 +172,78 @@ def init_db(db: sqlite3.Connection) -> None:
             salt TEXT NOT NULL,
             password_hash TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            kind TEXT NOT NULL CHECK(kind IN ('receita','despesa')),
+            amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+            category TEXT NOT NULL,
+            description TEXT NOT NULL,
+            discretionary INTEGER NOT NULL CHECK(discretionary IN (0,1)),
+            occurred_on TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, occurred_on);
     """)
     db.commit()
+
+
+def add_transaction(db: sqlite3.Connection, uid: int) -> None:
+    action = read("Tipo (1=receita, 2=despesa)")
+    if action not in ("1", "2"):
+        print("Tipo inválido.")
+        return
+    try:
+        amount = parse_money(read("Valor (ex.: 125,50)"))
+        category = read("Categoria (ex.: Bolsa, Moradia, Lazer)")
+        if not category:
+            raise ValueError("Informe uma categoria.")
+        description = read("Descrição", "Sem descrição")
+        discretionary = 0
+        if action == "2":
+            flag = read("Gasto não obrigatório? (s/n)", "n").lower()
+            if flag not in ("s", "n"):
+                raise ValueError("Responda s ou n.")
+            discretionary = int(flag == "s")
+        occurred_on = parse_date(read("Data AAAA-MM-DD (Enter = hoje)"))
+        with db:
+            db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
+                       (uid, "receita" if action == "1" else "despesa", amount, category, description, discretionary, occurred_on))
+        print("Transação registrada.")
+        pass
+    except ValueError as exc:
+        print(f"Erro: {exc}")
+
+
+def list_transactions(db: sqlite3.Connection, uid: int) -> None:
+    rows = db.execute("SELECT id,kind,amount_cents,category,description,discretionary,occurred_on FROM transactions WHERE user_id=? ORDER BY occurred_on DESC,id DESC LIMIT 100", (uid,)).fetchall()
+    if not rows:
+        print("Nenhuma transação encontrada.")
+        return
+    print("\n=== ÚLTIMAS TRANSAÇÕES ===")
+    for entry in rows:
+        optional = " | opcional" if entry["kind"] == "despesa" and entry["discretionary"] else ""
+        print(f"#{entry['id']} | {entry['occurred_on']} | {entry['kind']:7} | {money(entry['amount_cents'])} | {entry['category']} | {entry['description']}{optional}")
+
+
+def delete_transaction(db: sqlite3.Connection, uid: int) -> None:
+    list_transactions(db, uid)
+    text = read("ID para excluir (Enter cancela)")
+    if not text:
+        return
+    try:
+        tid = int(text)
+    except ValueError:
+        print("ID inválido.")
+        return
+    if read("Confirmar exclusão? (s/n)", "n").lower() != "s":
+        return
+    with db:
+        result = db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tid, uid))
+    if result.rowcount:
+        print("Transação excluída.")
+        pass
+    else:
+        print("Transação não localizada.")
 
 
 def main() -> None:
@@ -182,7 +252,7 @@ def main() -> None:
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 1 de 10")
+        print("BEACON MVP | Terminal | Etapa 2 de 10")
         user = authenticate(db)
         if user is None:
             return
@@ -191,9 +261,12 @@ def main() -> None:
         show_profile(db, uid)
         actions = {
             "1": ("Meu perfil", lambda: show_profile(db, uid)),
+            "2": ("Adicionar receita ou despesa", lambda: add_transaction(db, uid)),
+            "3": ("Listar transações", lambda: list_transactions(db, uid)),
+            "4": ("Excluir transação", lambda: delete_transaction(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 01 ===")
+            print("\n=== MENU BEACON | ETAPA 02 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

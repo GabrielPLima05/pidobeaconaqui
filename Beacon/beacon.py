@@ -209,7 +209,7 @@ def add_transaction(db: sqlite3.Connection, uid: int) -> None:
             db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
                        (uid, "receita" if action == "1" else "despesa", amount, category, description, discretionary, occurred_on))
         print("Transação registrada.")
-        pass
+        dashboard(db, uid)
     except ValueError as exc:
         print(f"Erro: {exc}")
 
@@ -241,9 +241,55 @@ def delete_transaction(db: sqlite3.Connection, uid: int) -> None:
         result = db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tid, uid))
     if result.rowcount:
         print("Transação excluída.")
-        pass
+        dashboard(db, uid)
     else:
         print("Transação não localizada.")
+
+
+def month_rows(db: sqlite3.Connection, uid: int, month: str) -> list[sqlite3.Row]:
+    return db.execute("SELECT * FROM transactions WHERE user_id=? AND substr(occurred_on,1,7)=? ORDER BY occurred_on,id", (uid, month)).fetchall()
+
+
+def totals(rows: list[sqlite3.Row]) -> tuple[int, int, int]:
+    income = sum(row["amount_cents"] for row in rows if row["kind"] == "receita")
+    expense = sum(row["amount_cents"] for row in rows if row["kind"] == "despesa")
+    optional = sum(row["amount_cents"] for row in rows if row["kind"] == "despesa" and row["discretionary"])
+    return income, expense, optional
+
+
+def valid_month(raw: str) -> str:
+    try:
+        parsed = date.fromisoformat(raw + "-01")
+        if len(raw) != 7 or raw[4] != "-":
+            raise ValueError()
+        return parsed.strftime("%Y-%m")
+    except ValueError as exc:
+        raise ValueError("Informe o mês como AAAA-MM.") from exc
+
+
+def dashboard(db: sqlite3.Connection, uid: int, month: str | None = None) -> None:
+    month = month or date.today().strftime("%Y-%m")
+    rows = month_rows(db, uid, month)
+    income, expense, optional = totals(rows)
+    print(f"\n=== PAINEL FINANCEIRO | {month} ===")
+    print(f"Receitas:        {money(income)}")
+    print(f"Despesas:        {money(expense)}")
+    print(f"Saldo:           {money(income - expense)}")
+    print(f"Gastos obrigatórios: {money(expense - optional)}")
+    print(f"Gastos opcionais:{money(optional):>15}")
+    if income:
+        print(f"Comprometimento: {expense / income * 100:.1f}% da renda lançada")
+    if not rows:
+        print("Sem transações neste mês.")
+    print("Dados lançados manualmente; não existe sincronização bancária.")
+
+
+def monthly_dashboard(db: sqlite3.Connection, uid: int) -> None:
+    try:
+        month = valid_month(read("Mês AAAA-MM", date.today().strftime("%Y-%m")))
+        dashboard(db, uid, month)
+    except ValueError as exc:
+        print(f"Erro: {exc}")
 
 
 def main() -> None:
@@ -252,21 +298,22 @@ def main() -> None:
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 2 de 10")
+        print("BEACON MVP | Terminal | Etapa 3 de 10")
         user = authenticate(db)
         if user is None:
             return
         uid = user["id"]
         print(f"\nBem-vindo(a), {user['name']}!")
-        show_profile(db, uid)
+        dashboard(db, uid)
         actions = {
             "1": ("Meu perfil", lambda: show_profile(db, uid)),
             "2": ("Adicionar receita ou despesa", lambda: add_transaction(db, uid)),
             "3": ("Listar transações", lambda: list_transactions(db, uid)),
             "4": ("Excluir transação", lambda: delete_transaction(db, uid)),
+            "5": ("Painel financeiro mensal", lambda: monthly_dashboard(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 02 ===")
+            print("\n=== MENU BEACON | ETAPA 03 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

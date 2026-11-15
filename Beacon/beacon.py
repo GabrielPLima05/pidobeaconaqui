@@ -292,13 +292,43 @@ def monthly_dashboard(db: sqlite3.Connection, uid: int) -> None:
         print(f"Erro: {exc}")
 
 
+def bar(amount: int, maximum: int, width: int = 30) -> str:
+    filled = 0 if maximum <= 0 else max(0, round(amount / maximum * width))
+    if amount > 0:
+        filled = max(1, filled)
+    return "#" * filled + "." * (width - filled)
+
+
+def expense_charts(db: sqlite3.Connection, uid: int) -> None:
+    try:
+        month = valid_month(read("Mês do gráfico AAAA-MM", date.today().strftime("%Y-%m")))
+    except ValueError as exc:
+        print(f"Erro: {exc}")
+        return
+    rows = month_rows(db, uid, month)
+    by_category: dict[str, int] = {}
+    for item in rows:
+        if item["kind"] == "despesa":
+            by_category[item["category"]] = by_category.get(item["category"], 0) + item["amount_cents"]
+    print(f"\n=== GRÁFICO DE GASTOS POR CATEGORIA | {month} ===")
+    expense = sum(by_category.values())
+    if not by_category:
+        print("Sem despesas neste mês. Registre algumas despesas para visualizar.")
+    else:
+        biggest = max(by_category.values())
+        for category, amount in sorted(by_category.items(), key=lambda data: (-data[1], data[0])):
+            percent = amount / expense * 100
+            print(f"{category[:15]:15} | {bar(amount, biggest)} | {money(amount):>13} | {percent:5.1f}%")
+    print("Escala relativa. Barras não são previsões.")
+
+
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 3 de 10")
+        print("BEACON MVP | Terminal | Etapa 4 de 10")
         user = authenticate(db)
         if user is None:
             return
@@ -311,9 +341,10 @@ def main() -> None:
             "3": ("Listar transações", lambda: list_transactions(db, uid)),
             "4": ("Excluir transação", lambda: delete_transaction(db, uid)),
             "5": ("Painel financeiro mensal", lambda: monthly_dashboard(db, uid)),
+            "6": ("Gráficos de despesas", lambda: expense_charts(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 03 ===")
+            print("\n=== MENU BEACON | ETAPA 04 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

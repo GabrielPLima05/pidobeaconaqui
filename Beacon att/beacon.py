@@ -292,6 +292,11 @@ def monthly_dashboard(db: sqlite3.Connection, uid: int) -> None:
         print(f"Erro: {exc}")
 
 
+def offset_month(value: date, offset: int) -> str:
+    year, index = divmod(value.year * 12 + value.month - 1 + offset, 12)
+    return f"{year:04d}-{index + 1:02d}"
+
+
 def bar(amount: int, maximum: int, width: int = 30) -> str:
     filled = 0 if maximum <= 0 else max(0, round(amount / maximum * width))
     if amount > 0:
@@ -313,13 +318,69 @@ def expense_charts(db: sqlite3.Connection, uid: int) -> None:
     print(f"\n=== GRÁFICO DE GASTOS POR CATEGORIA | {month} ===")
     expense = sum(by_category.values())
     if not by_category:
-        print("Sem despesas neste mês. Registre algumas despesas para visualizar.")
+        print("Sem despesas neste mês. Use 'Carregar dados fictícios' para experimentar.")
     else:
         biggest = max(by_category.values())
         for category, amount in sorted(by_category.items(), key=lambda data: (-data[1], data[0])):
             percent = amount / expense * 100
             print(f"{category[:15]:15} | {bar(amount, biggest)} | {money(amount):>13} | {percent:5.1f}%")
-    print("Escala relativa. Barras não são previsões.")
+    print("\n=== EVOLUÇÃO DAS DESPESAS | ÚLTIMOS 6 MESES ===")
+    anchor = date.fromisoformat(month + "-01")
+    values = []
+    for offset in range(-5, 1):
+        current = offset_month(anchor, offset)
+        monthly = month_rows(db, uid, current)
+        values.append((current, totals(monthly)[1]))
+    highest = max((value for _, value in values), default=0)
+    for current, amount in values:
+        print(f"{current} | {bar(amount, highest, 24)} | {money(amount):>13}")
+    print("Escala relativa em cada gráfico. Barras não são previsões.")
+
+
+def load_demo(db: sqlite3.Connection, uid: int) -> None:
+    print("Serão cadastrados lançamentos FICTÍCIOS para o mês atual e dois anteriores.")
+    if read("Confirmar inclusão dos exemplos? (s/n)", "n").lower() != "s":
+        return
+    examples = [
+        ("receita", 190000, "Bolsa", "Bolsa de estágio", 0),
+        ("receita", 35000, "Freelance", "Trabalho extra", 0),
+        ("despesa", 85000, "Moradia", "Aluguel", 0),
+        ("despesa", 28000, "Alimentação", "Mercado", 0),
+        ("despesa", 12000, "Transporte", "Ônibus", 0),
+        ("despesa", 18000, "Delivery", "Pedidos", 1),
+        ("despesa", 12000, "Streaming", "Assinaturas", 1),
+        ("despesa", 15000, "Lazer", "Passeios", 1),
+        ("despesa", 8500, "Compras", "Itens diversos", 1),
+        ("despesa", 7000, "Café", "Cafeteria", 1)
+    ]
+    counter = 0
+    for offset, factor in ((-2, Decimal("0.75")), (-1, Decimal("1.20")), (0, Decimal("1.00"))):
+        month = offset_month(date.today(), offset)
+        present = db.execute("SELECT COUNT(*) FROM transactions WHERE user_id=? AND substr(occurred_on,1,7)=? AND description LIKE 'DEMO | %'", (uid, month)).fetchone()[0]
+        if present:
+            continue
+        with db:
+            for position, (kind, amount, category, description, optional) in enumerate(examples, start=1):
+                adjusted = int((Decimal(amount) * factor).quantize(Decimal("1"), rounding=ROUND_HALF_UP)) if optional else amount
+                db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
+                           (uid, kind, adjusted, category, "DEMO | " + description, optional, f"{month}-{min(position + 2, 27):02d}"))
+                counter += 1
+    print(f"Foram incluídos {counter} lançamentos fictícios. Repetir não duplica os exemplos dos mesmos meses.")
+    expense_charts_current(db, uid)
+
+
+def expense_charts_current(db: sqlite3.Connection, uid: int) -> None:
+    current = date.today().strftime("%Y-%m")
+    rows = month_rows(db, uid, current)
+    by_category: dict[str, int] = {}
+    for item in rows:
+        if item["kind"] == "despesa":
+            by_category[item["category"]] = by_category.get(item["category"], 0) + item["amount_cents"]
+    if by_category:
+        peak = max(by_category.values())
+        print("\nExemplo | gráfico de despesas do mês atual:")
+        for category, amount in sorted(by_category.items(), key=lambda x: (-x[1], x[0])):
+            print(f"{category[:15]:15} | {bar(amount, peak, 20)} | {money(amount)}")
 
 
 def main() -> None:
@@ -328,7 +389,7 @@ def main() -> None:
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 4 de 10")
+        print("BEACON MVP | Terminal | Etapa 5 de 10")
         user = authenticate(db)
         if user is None:
             return
@@ -342,9 +403,10 @@ def main() -> None:
             "4": ("Excluir transação", lambda: delete_transaction(db, uid)),
             "5": ("Painel financeiro mensal", lambda: monthly_dashboard(db, uid)),
             "6": ("Gráficos de despesas", lambda: expense_charts(db, uid)),
+            "7": ("Carregar dados fictícios", lambda: load_demo(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 04 ===")
+            print("\n=== MENU BEACON | ETAPA 05 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

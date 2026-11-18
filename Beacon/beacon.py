@@ -183,6 +183,14 @@ def init_db(db: sqlite3.Connection) -> None:
             occurred_on TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, occurred_on);
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            name TEXT NOT NULL,
+            target_cents INTEGER NOT NULL CHECK(target_cents > 0),
+            saved_cents INTEGER NOT NULL DEFAULT 0 CHECK(saved_cents >= 0),
+            deadline TEXT NOT NULL
+        );
     """)
     db.commit()
 
@@ -209,7 +217,7 @@ def add_transaction(db: sqlite3.Connection, uid: int) -> None:
             db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
                        (uid, "receita" if action == "1" else "despesa", amount, category, description, discretionary, occurred_on))
         print("Transação registrada.")
-        pass
+        dashboard(db, uid)
     except ValueError as exc:
         print(f"Erro: {exc}")
 
@@ -241,9 +249,190 @@ def delete_transaction(db: sqlite3.Connection, uid: int) -> None:
         result = db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tid, uid))
     if result.rowcount:
         print("Transação excluída.")
-        pass
+        dashboard(db, uid)
     else:
         print("Transação não localizada.")
+
+
+def month_rows(db: sqlite3.Connection, uid: int, month: str) -> list[sqlite3.Row]:
+    return db.execute("SELECT * FROM transactions WHERE user_id=? AND substr(occurred_on,1,7)=? ORDER BY occurred_on,id", (uid, month)).fetchall()
+
+
+def totals(rows: list[sqlite3.Row]) -> tuple[int, int, int]:
+    income = sum(row["amount_cents"] for row in rows if row["kind"] == "receita")
+    expense = sum(row["amount_cents"] for row in rows if row["kind"] == "despesa")
+    optional = sum(row["amount_cents"] for row in rows if row["kind"] == "despesa" and row["discretionary"])
+    return income, expense, optional
+
+
+def valid_month(raw: str) -> str:
+    try:
+        parsed = date.fromisoformat(raw + "-01")
+        if len(raw) != 7 or raw[4] != "-":
+            raise ValueError()
+        return parsed.strftime("%Y-%m")
+    except ValueError as exc:
+        raise ValueError("Informe o mês como AAAA-MM.") from exc
+
+
+def dashboard(db: sqlite3.Connection, uid: int, month: str | None = None) -> None:
+    month = month or date.today().strftime("%Y-%m")
+    rows = month_rows(db, uid, month)
+    income, expense, optional = totals(rows)
+    print(f"\n=== PAINEL FINANCEIRO | {month} ===")
+    print(f"Receitas:        {money(income)}")
+    print(f"Despesas:        {money(expense)}")
+    print(f"Saldo:           {money(income - expense)}")
+    print(f"Gastos obrigatórios: {money(expense - optional)}")
+    print(f"Gastos opcionais:{money(optional):>15}")
+    if income:
+        print(f"Comprometimento: {expense / income * 100:.1f}% da renda lançada")
+    if not rows:
+        print("Sem transações neste mês.")
+    print("Dados lançados manualmente; não existe sincronização bancária.")
+
+
+def monthly_dashboard(db: sqlite3.Connection, uid: int) -> None:
+    try:
+        month = valid_month(read("Mês AAAA-MM", date.today().strftime("%Y-%m")))
+        dashboard(db, uid, month)
+    except ValueError as exc:
+        print(f"Erro: {exc}")
+
+
+def offset_month(value: date, offset: int) -> str:
+    year, index = divmod(value.year * 12 + value.month - 1 + offset, 12)
+    return f"{year:04d}-{index + 1:02d}"
+
+
+def bar(amount: int, maximum: int, width: int = 30) -> str:
+    filled = 0 if maximum <= 0 else max(0, round(amount / maximum * width))
+    if amount > 0:
+        filled = max(1, filled)
+    return "#" * filled + "." * (width - filled)
+
+
+def expense_charts(db: sqlite3.Connection, uid: int) -> None:
+    try:
+        month = valid_month(read("Mês do gráfico AAAA-MM", date.today().strftime("%Y-%m")))
+    except ValueError as exc:
+        print(f"Erro: {exc}")
+        return
+    rows = month_rows(db, uid, month)
+    by_category: dict[str, int] = {}
+    for item in rows:
+        if item["kind"] == "despesa":
+            by_category[item["category"]] = by_category.get(item["category"], 0) + item["amount_cents"]
+    print(f"\n=== GRÁFICO DE GASTOS POR CATEGORIA | {month} ===")
+    expense = sum(by_category.values())
+    if not by_category:
+        print("Sem despesas neste mês. Use 'Carregar dados fictícios' para experimentar.")
+    else:
+        biggest = max(by_category.values())
+        for category, amount in sorted(by_category.items(), key=lambda data: (-data[1], data[0])):
+            percent = amount / expense * 100
+            print(f"{category[:15]:15} | {bar(amount, biggest)} | {money(amount):>13} | {percent:5.1f}%")
+    print("\n=== EVOLUÇÃO DAS DESPESAS | ÚLTIMOS 6 MESES ===")
+    anchor = date.fromisoformat(month + "-01")
+    values = []
+    for offset in range(-5, 1):
+        current = offset_month(anchor, offset)
+        monthly = month_rows(db, uid, current)
+        values.append((current, totals(monthly)[1]))
+    highest = max((value for _, value in values), default=0)
+    for current, amount in values:
+        print(f"{current} | {bar(amount, highest, 24)} | {money(amount):>13}")
+    print("Escala relativa em cada gráfico. Barras não são previsões.")
+
+
+def load_demo(db: sqlite3.Connection, uid: int) -> None:
+    print("Serão cadastrados lançamentos FICTÍCIOS para o mês atual e dois anteriores.")
+    if read("Confirmar inclusão dos exemplos? (s/n)", "n").lower() != "s":
+        return
+    examples = [
+        ("receita", 190000, "Bolsa", "Bolsa de estágio", 0),
+        ("receita", 35000, "Freelance", "Trabalho extra", 0),
+        ("despesa", 85000, "Moradia", "Aluguel", 0),
+        ("despesa", 28000, "Alimentação", "Mercado", 0),
+        ("despesa", 12000, "Transporte", "Ônibus", 0),
+        ("despesa", 18000, "Delivery", "Pedidos", 1),
+        ("despesa", 12000, "Streaming", "Assinaturas", 1),
+        ("despesa", 15000, "Lazer", "Passeios", 1),
+        ("despesa", 8500, "Compras", "Itens diversos", 1),
+        ("despesa", 7000, "Café", "Cafeteria", 1)
+    ]
+    counter = 0
+    for offset, factor in ((-2, Decimal("0.75")), (-1, Decimal("1.20")), (0, Decimal("1.00"))):
+        month = offset_month(date.today(), offset)
+        present = db.execute("SELECT COUNT(*) FROM transactions WHERE user_id=? AND substr(occurred_on,1,7)=? AND description LIKE 'DEMO | %'", (uid, month)).fetchone()[0]
+        if present:
+            continue
+        with db:
+            for position, (kind, amount, category, description, optional) in enumerate(examples, start=1):
+                adjusted = int((Decimal(amount) * factor).quantize(Decimal("1"), rounding=ROUND_HALF_UP)) if optional else amount
+                db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
+                           (uid, kind, adjusted, category, "DEMO | " + description, optional, f"{month}-{min(position + 2, 27):02d}"))
+                counter += 1
+    print(f"Foram incluídos {counter} lançamentos fictícios. Repetir não duplica os exemplos dos mesmos meses.")
+    expense_charts_current(db, uid)
+
+
+def expense_charts_current(db: sqlite3.Connection, uid: int) -> None:
+    current = date.today().strftime("%Y-%m")
+    rows = month_rows(db, uid, current)
+    by_category: dict[str, int] = {}
+    for item in rows:
+        if item["kind"] == "despesa":
+            by_category[item["category"]] = by_category.get(item["category"], 0) + item["amount_cents"]
+    if by_category:
+        peak = max(by_category.values())
+        print("\nExemplo | gráfico de despesas do mês atual:")
+        for category, amount in sorted(by_category.items(), key=lambda x: (-x[1], x[0])):
+            print(f"{category[:15]:15} | {bar(amount, peak, 20)} | {money(amount)}")
+
+
+def months_until(deadline: str) -> int:
+    today = date.today()
+    end = date.fromisoformat(deadline)
+    if end < today:
+        return 0
+    return (end.year - today.year) * 12 + end.month - today.month + 1
+
+
+def show_goals(db: sqlite3.Connection, uid: int) -> list[sqlite3.Row]:
+    goals = db.execute("SELECT * FROM goals WHERE user_id=? ORDER BY deadline,id", (uid,)).fetchall()
+    print("\n=== METAS FINANCEIRAS ===")
+    if not goals:
+        print("Nenhuma meta cadastrada.")
+    for goal in goals:
+        missing = max(0, goal["target_cents"] - goal["saved_cents"])
+        months = months_until(goal["deadline"])
+        contribution = (missing + months - 1) // months if months else 0
+        status = f"Aporte indicativo: {money(contribution)}/mês" if months else "Prazo vencido"
+        print(f"#{goal['id']} | {goal['name']} | Meta: {money(goal['target_cents'])} | Reservado: {money(goal['saved_cents'])} | Falta: {money(missing)} | Prazo: {goal['deadline']} | {status}")
+    return goals
+
+
+def add_goal(db: sqlite3.Connection, uid: int) -> None:
+    try:
+        name = read("Nome da meta")
+        if not name:
+            raise ValueError("O nome da meta é obrigatório.")
+        target = parse_money(read("Valor total da meta"))
+        saved = parse_money(read("Quanto já foi reservado", "0"), allow_zero=True)
+        deadline_raw = read("Prazo (AAAA-MM-DD)")
+        if not deadline_raw:
+            raise ValueError("Informe o prazo.")
+        deadline = parse_date(deadline_raw)
+        if deadline < date.today().isoformat() or saved > target:
+            raise ValueError("Confira o prazo e o valor reservado.")
+        with db:
+            db.execute("INSERT INTO goals(user_id,name,target_cents,saved_cents,deadline) VALUES(?,?,?,?,?)",
+                       (uid, name, target, saved, deadline))
+        print("Meta registrada.")
+        pass
+    except ValueError as exc:
+        print(f"Erro: {exc}")
 
 
 def main() -> None:
@@ -252,21 +441,26 @@ def main() -> None:
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 2 de 10")
+        print("BEACON MVP | Terminal | Etapa 6 de 10")
         user = authenticate(db)
         if user is None:
             return
         uid = user["id"]
         print(f"\nBem-vindo(a), {user['name']}!")
-        show_profile(db, uid)
+        dashboard(db, uid)
         actions = {
             "1": ("Meu perfil", lambda: show_profile(db, uid)),
             "2": ("Adicionar receita ou despesa", lambda: add_transaction(db, uid)),
             "3": ("Listar transações", lambda: list_transactions(db, uid)),
             "4": ("Excluir transação", lambda: delete_transaction(db, uid)),
+            "5": ("Painel financeiro mensal", lambda: monthly_dashboard(db, uid)),
+            "6": ("Gráficos de despesas", lambda: expense_charts(db, uid)),
+            "7": ("Carregar dados fictícios", lambda: load_demo(db, uid)),
+            "8": ("Cadastrar meta", lambda: add_goal(db, uid)),
+            "9": ("Consultar metas", lambda: show_goals(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 02 ===")
+            print("\n=== MENU BEACON | ETAPA 06 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

@@ -435,13 +435,32 @@ def add_goal(db: sqlite3.Connection, uid: int) -> None:
         print(f"Erro: {exc}")
 
 
+def update_goal(db: sqlite3.Connection, uid: int) -> None:
+    show_goals(db, uid)
+    try:
+        gid = int(read("Número da meta"))
+        goal = db.execute("SELECT * FROM goals WHERE id=? AND user_id=?", (gid, uid)).fetchone()
+        if goal is None:
+            print("Meta não encontrada.")
+            return
+        saved = parse_money(read("Novo valor total reservado", "0"), allow_zero=True)
+        if saved > goal["target_cents"]:
+            raise ValueError("O valor reservado não pode superar a meta.")
+        with db:
+            db.execute("UPDATE goals SET saved_cents=? WHERE id=? AND user_id=?", (saved, gid, uid))
+        print("Meta atualizada.")
+        pass
+    except ValueError as exc:
+        print(f"Erro: {exc}")
+
+
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 6 de 10")
+        print("BEACON MVP | Terminal | Etapa 7 de 10")
         user = authenticate(db)
         if user is None:
             return
@@ -458,9 +477,10 @@ def main() -> None:
             "7": ("Carregar dados fictícios", lambda: load_demo(db, uid)),
             "8": ("Cadastrar meta", lambda: add_goal(db, uid)),
             "9": ("Consultar metas", lambda: show_goals(db, uid)),
+            "10": ("Atualizar valor reservado", lambda: update_goal(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 06 ===")
+            print("\n=== MENU BEACON | ETAPA 07 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

@@ -217,7 +217,7 @@ def add_transaction(db: sqlite3.Connection, uid: int) -> None:
             db.execute("INSERT INTO transactions(user_id,kind,amount_cents,category,description,discretionary,occurred_on) VALUES(?,?,?,?,?,?,?)",
                        (uid, "receita" if action == "1" else "despesa", amount, category, description, discretionary, occurred_on))
         print("Transação registrada.")
-        dashboard(db, uid)
+        suggestions(db, uid)
     except ValueError as exc:
         print(f"Erro: {exc}")
 
@@ -249,7 +249,7 @@ def delete_transaction(db: sqlite3.Connection, uid: int) -> None:
         result = db.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tid, uid))
     if result.rowcount:
         print("Transação excluída.")
-        dashboard(db, uid)
+        suggestions(db, uid)
     else:
         print("Transação não localizada.")
 
@@ -430,7 +430,7 @@ def add_goal(db: sqlite3.Connection, uid: int) -> None:
             db.execute("INSERT INTO goals(user_id,name,target_cents,saved_cents,deadline) VALUES(?,?,?,?,?)",
                        (uid, name, target, saved, deadline))
         print("Meta registrada.")
-        pass
+        suggestions(db, uid)
     except ValueError as exc:
         print(f"Erro: {exc}")
 
@@ -449,9 +449,61 @@ def update_goal(db: sqlite3.Connection, uid: int) -> None:
         with db:
             db.execute("UPDATE goals SET saved_cents=? WHERE id=? AND user_id=?", (saved, gid, uid))
         print("Meta atualizada.")
-        pass
+        suggestions(db, uid)
     except ValueError as exc:
         print(f"Erro: {exc}")
+
+
+def suggestions(db: sqlite3.Connection, uid: int) -> None:
+    month = date.today().strftime("%Y-%m")
+    data = month_rows(db, uid, month)
+    income, expense, optional = totals(data)
+    goals = db.execute("SELECT * FROM goals WHERE user_id=? ORDER BY deadline,id", (uid,)).fetchall()
+    print(f"\n=== PLANEJAMENTO E CORTES | {month} ===")
+    if not goals:
+        print("Cadastre uma meta para calcular os aportes necessários.")
+        return
+    contribution_total = 0
+    for goal in goals:
+        remaining = max(0, goal["target_cents"] - goal["saved_cents"])
+        months = months_until(goal["deadline"])
+        if not months:
+            print(f"Meta '{goal['name']}' com prazo vencido: atualize seu planejamento.")
+            continue
+        part = (remaining + months - 1) // months
+        contribution_total += part
+        print(f"{goal['name']}: {money(part)}/mês por {months} mês(es) até {goal['deadline']}.")
+    if not data:
+        print("Sem lançamentos no mês atual. Cadastre receitas e despesas para projetar cortes.")
+        return
+    balance = income - expense
+    needed = max(0, contribution_total - balance)
+    print(f"Saldo do mês: {money(balance)} | Aporte mensal para metas: {money(contribution_total)}")
+    if needed == 0:
+        print("No cenário informado, o saldo cobre o aporte calculado. Não há corte adicional necessário.")
+        return
+    print(f"Valor adicional necessário por mês: {money(needed)}")
+    if optional == 0:
+        print("Nenhum gasto opcional registrado. Não é possível sugerir cortes nessa base.")
+        return
+    available = min(needed, optional)
+    categories: dict[str, int] = {}
+    for item in data:
+        if item["kind"] == "despesa" and item["discretionary"]:
+            categories[item["category"]] = categories.get(item["category"], 0) + item["amount_cents"]
+    print("Cortes propostos em gastos opcionais, priorizando maiores categorias:")
+    pending = available
+    for category, amount in sorted(categories.items(), key=lambda pair: (-pair[1], pair[0])):
+        cut = min(amount, pending)
+        if cut:
+            print(f"  {category}: reduzir {money(cut)} de {money(amount)}")
+            pending -= cut
+        if pending <= 0:
+            break
+    print(f"Total de cortes sugeridos: {money(available)}")
+    if needed > optional:
+        print(f"Mesmo eliminando todos os gastos opcionais, faltariam {money(needed - optional)}.")
+    print("Simulação matemática baseada no mês atual, sem IA generativa, juros, sazonalidade ou previsão de renda.")
 
 
 def main() -> None:
@@ -460,7 +512,7 @@ def main() -> None:
     db.row_factory = sqlite3.Row
     try:
         init_db(db)
-        print("BEACON MVP | Terminal | Etapa 7 de 10")
+        print("BEACON MVP | Terminal | Etapa 8 de 10")
         user = authenticate(db)
         if user is None:
             return
@@ -478,9 +530,10 @@ def main() -> None:
             "8": ("Cadastrar meta", lambda: add_goal(db, uid)),
             "9": ("Consultar metas", lambda: show_goals(db, uid)),
             "10": ("Atualizar valor reservado", lambda: update_goal(db, uid)),
+            "11": ("Planejamento e cortes", lambda: suggestions(db, uid)),
         }
         while True:
-            print("\n=== MENU BEACON | ETAPA 07 ===")
+            print("\n=== MENU BEACON | ETAPA 08 ===")
             for number, (label, _) in actions.items():
                 print(f"{number:>2} - {label}")
             print(" 0 - Sair")

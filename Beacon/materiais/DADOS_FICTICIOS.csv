@@ -1,0 +1,11 @@
+﻿Categoria;Tipo;Valor_R$;Gasto_opcional;Descrição
+Bolsa;receita;1900,00;Não;Bolsa de estágio
+Freelance;receita;350,00;Não;Trabalho extra
+Moradia;despesa;850,00;Não;Aluguel
+Alimentação;despesa;280,00;Não;Mercado
+Transporte;despesa;120,00;Não;Ônibus
+Delivery;despesa;180,00;Sim;Pedidos
+Streaming;despesa;120,00;Sim;Assinaturas
+Lazer;despesa;150,00;Sim;Passeios
+Compras;despesa;85,00;Sim;Itens diversos
+Café;despesa;70,00;Sim;Cafeteria

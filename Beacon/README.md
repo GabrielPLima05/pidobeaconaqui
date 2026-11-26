@@ -1,3 +1,7 @@
+# BEACON — Agora com interface visual
+
+**Para executar a nova interface, use `iniciar_windows.bat` e leia [`README_INTERFACE.md`](README_INTERFACE.md).** A versão de terminal continua disponível em `iniciar_terminal.bat`.
+
 # Beacon — MVP de planejamento financeiro
 
 **Versão acadêmica:** aplicativo de terminal em Python, com armazenamento local SQLite, cálculo determinístico de metas e cortes e educação financeira contextualizada. O Beacon não utiliza IA generativa nesta edição. Esta entrega corresponde ao **MVP em terminal**, não à plataforma web completa descrita no conceito original.
@@ -35,9 +39,14 @@ Um extrato ou gráfico ajuda a enxergar gastos, mas não informa necessariamente
 3. No menu de acesso, escolha `2 - Criar conta`, forneça e-mail, nome, senha de 8 a 128 caracteres e confirmação.
 4. Volte ao menu, escolha `1 - Entrar` e utilize seu cadastro.
 5. Para ver um cenário completo, escolha a opção `7` e confirme o carregamento de **dados fictícios**. A opção é idempotente para os mesmos meses.
-6. Ao finalizar, use `0 - Sair` e feche a janela.
+6. Após consultar uma opção, leia o resultado e pressione **qualquer tecla** para voltar ao menu. No Windows, não é necessário apertar Enter; em consoles que não suportam leitura de uma tecla, utilize Enter. As páginas de educação financeira, as respostas do FAQ e cada correção do quiz também aguardam essa confirmação.
+7. Ao finalizar, use `0 - Sair` e feche a janela.
 
 A entrada de senha exibe `*` apenas para visualização da quantidade de caracteres. O programa não grava a senha em texto puro. O banco `beacon.db` é criado ao lado do arquivo Python e é excluído do Git pelo `.gitignore`.
+
+## Navegação e leitura de resultados
+
+O sistema **não retorna imediatamente** ao menu após exibir o resultado de uma operação. Na execução interativa no Windows, pressione qualquer tecla para voltar ao menu, sem necessidade de Enter. Em terminais incompatíveis com a captura de tecla única, o programa solicitará Enter. Isso também vale para as leituras da trilha educativa, respostas do FAQ e para o feedback de cada questão do quiz. Os cálculos e os dados existentes no `beacon.db` permanecem inalterados.
 
 ## Mapa do menu
 
@@ -108,7 +117,7 @@ Execute no PowerShell:
 py -3 -m unittest discover -s testes -v
 ```
 
-Ou dê dois cliques em `testar_windows.bat`. A suíte contém **22 testes automatizados** de cálculos, integridade monetária, dados fictícios, exportação, perfis, validações, PDF, autenticidade do PDF e isolamento por usuário. O resultado nesta entrega foi `22 tests ... OK`. Isso não equivale a uma auditoria formal de segurança ou usabilidade em todos os sistemas operacionais.
+Ou dê dois cliques em `testar_windows.bat`. A suíte contém **28 testes automatizados** de cálculos, integridade monetária, dados fictícios, exportação, perfis, validações, PDF, autenticidade do PDF e isolamento por usuário. O resultado nesta entrega foi `28 tests ... OK`. Isso não equivale a uma auditoria formal de segurança ou usabilidade em todos os sistemas operacionais.
 
 Para preservar dados antigos: feche o programa, faça backup do arquivo `beacon.db`, atualize os arquivos do projeto e execute novamente. Não mova o `.db` para o GitHub. Caso o sistema apresente erro de banco, restaure a cópia de segurança e consulte o erro impresso no terminal.
 
@@ -131,3 +140,7 @@ A trilha inclui materiais originais e cita as fontes oficiais em `materiais/FONT
 ## Participação da equipe e histórico
 
 O histórico e a colaboração devem ser comprovados pelo **repositório real**, em commits e/ou pull requests com autoria legítima. Consulte `GUIA_EQUIPE_GITHUB.md`. O ZIP distribuído não contém um histórico Git artificial e não executa commits automáticos.
+
+## Dados fictícios na aba Simulador de compras
+
+Na interface visual, acesse **Simular compra → Carregar dados fictícios para teste**. Depois da confirmação, o Beacon adiciona lançamentos dos últimos três meses (identificados por `DEMO |`) e preenche uma simulação de notebook de R$ 600 em seis parcelas sem juros. Os exemplos não substituem lançamentos existentes, não são duplicados no mesmo mês e a compra simulada não altera o saldo. Use preferencialmente uma conta de demonstração.

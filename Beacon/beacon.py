@@ -46,6 +46,38 @@ def read(label: str, default: str | None = None) -> str:
     return result if result else (default or "")
 
 
+def wait_for_menu() -> None:
+    prompt = "\nPressione qualquer tecla para voltar ao menu..."
+    if os.name == "nt" and sys.stdin.isatty():
+        import msvcrt
+        print(prompt, end="", flush=True)
+        key = msvcrt.getwch()
+        if key in ("\x00", "\xe0"):
+            msvcrt.getwch()
+        elif key == "\x03":
+            raise KeyboardInterrupt
+        print()
+    elif sys.stdin.isatty():
+        import termios
+        import tty
+        print(prompt, end="", flush=True)
+        fd = sys.stdin.fileno()
+        old_mode = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)
+            key = sys.stdin.read(1)
+            if key == "\x03":
+                raise KeyboardInterrupt
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_mode)
+            print()
+    else:
+        try:
+            input("\nPressione Enter para voltar ao menu...")
+        except EOFError:
+            pass
+
+
 def parse_date(value: str) -> str:
     if not value.strip():
         return date.today().isoformat()
@@ -549,15 +581,18 @@ def learn() -> None:
             return
         if choice == "8":
             quiz()
+            wait_for_menu()
             continue
         found = next((file for code, _, file in chapters if code == choice), None)
         if found is None:
             print("Opção inválida.")
+            wait_for_menu()
             continue
         try:
             print("\n" + (root / found).read_text(encoding="utf-8"))
         except OSError:
             print("Arquivo didático não encontrado. Confira a pasta materiais.")
+        wait_for_menu()
 
 
 def quiz() -> None:
@@ -576,6 +611,7 @@ def quiz() -> None:
             print("Correto!")
         else:
             print(f"Resposta esperada: {answer}.")
+        wait_for_menu()
     print(f"\nResultado: {score}/{len(items)}. A trilha é educativa, não aconselhamento de investimento.")
 
 
@@ -724,6 +760,7 @@ def frequently_asked() -> None:
             print("Nenhuma pergunta cadastrada com esse termo. Tente outra palavra.")
         for title, answer in selected:
             print(f"\n{title}\n{answer}")
+        wait_for_menu()
 
 
 def create_payment_schedule(amount_cents: int, months: int, monthly_percent: Decimal = Decimal("0")) -> list[int]:
@@ -934,6 +971,7 @@ def main() -> None:
         uid = user["id"]
         print(f"\nBem-vindo(a), {user['name']}!")
         dashboard(db, uid)
+        wait_for_menu()
         actions = {
             "1": ("Meu perfil", lambda: show_profile(db, uid)),
             "2": ("Adicionar receita ou despesa", lambda: add_transaction(db, uid)),
@@ -968,6 +1006,7 @@ def main() -> None:
                 print("Opção inválida.")
             else:
                 command[1]()
+            wait_for_menu()
     finally:
         db.close()
 

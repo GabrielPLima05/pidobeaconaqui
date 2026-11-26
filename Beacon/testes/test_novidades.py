@@ -100,7 +100,7 @@ class NewFeaturesTests(unittest.TestCase):
     def test_faq_predefinido_sem_ia(self):
         output = io.StringIO()
         answers = iter(["simulador", "0"])
-        with patch.object(beacon, "read", side_effect=lambda *args: next(answers)), redirect_stdout(output):
+        with patch.object(beacon, "read", side_effect=lambda *args: next(answers)), patch.object(beacon, "wait_for_menu"), redirect_stdout(output):
             beacon.frequently_asked()
         self.assertIn("Como funciona o simulador de compras?", output.getvalue())
         self.assertIn("não altera suas transações", output.getvalue().lower())

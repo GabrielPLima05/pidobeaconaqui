@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050508">
+  <title>Beacon | Gestão financeira</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-hero">
+      <span class="wordmark auth-wordmark">BEACON<span class="period">.</span></span>
+      <div class="auth-hero-content">
+        <span class="eyebrow"><span class="dot purple"></span> SEU DINHEIRO, SUAS DECISÕES</span>
+        <h1>O futuro financeiro começa com <em>clareza.</em></h1>
+        <p>Organize receitas, entenda seus gastos e transforme metas em planos concretos, sem complicação.</p>
+        <div class="hero-tags"><span>Orçamento inteligente</span><span>Metas</span><span>Educação financeira</span></div>
+      </div>
+      <span class="auth-footnote">BEACON MVP · Execução local · Sem sincronização bancária</span>
+      <div class="hero-decor decor-one"></div><div class="hero-decor decor-two"></div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-form-area">
+        <span class="eyebrow">BEM-VINDO AO BEACON</span>
+        <h2 id="auth-heading">Entre na sua conta</h2>
+        <p id="auth-subheading" class="muted">Acesse seu painel financeiro pessoal.</p>
+        <div class="auth-tabs"><button type="button" class="auth-tab active" data-auth-mode="login">Entrar</button><button type="button" class="auth-tab" data-auth-mode="register">Criar conta</button></div>
+        <form id="auth-form" class="form-stack">
+          <label id="name-label" hidden>Nome completo<input id="auth-name" maxlength="120" autocomplete="name" placeholder="Seu nome"></label>
+          <label>E-mail<input id="auth-email" type="email" required maxlength="254" autocomplete="email" placeholder="voce@exemplo.com"></label>
+          <label>Senha<div class="password-row"><input id="auth-password" type="password" required minlength="8" maxlength="128" autocomplete="current-password" placeholder="Pelo menos 8 caracteres"><button type="button" id="toggle-password" class="text-icon-button" aria-label="Mostrar senha">Mostrar</button></div></label>
+          <label id="confirm-label" hidden>Confirmar senha<input id="auth-confirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="Repita a senha"></label>
+          <button class="btn btn-primary btn-wide" type="submit" id="auth-submit">Entrar na plataforma <span aria-hidden="true">↗</span></button>
+          <p id="auth-error" class="error-message" role="alert"></p>
+        </form>
+        <div class="secure-note"><span>◈</span> Os dados ficam no banco SQLite do seu computador.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-shell" class="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-area"><div class="wordmark">BEACON<span class="period">.</span></div><span class="brand-label">FINANÇAS PESSOAIS</span></div>
+      <div class="sidebar-caption">ESPAÇO DE TRABALHO</div>
+      <nav class="main-nav" aria-label="Menu principal">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-symbol">▦</span> Visão geral</button>
+        <button class="nav-item" data-page="transactions"><span class="nav-symbol">⇄</span> Transações</button>
+        <button class="nav-item" data-page="goals"><span class="nav-symbol">◎</span> Metas e objetivos</button>
+        <button class="nav-item" data-page="planning"><span class="nav-symbol">◫</span> Plano de economia</button>
+        <button class="nav-item" data-page="purchase"><span class="nav-symbol">▣</span> Simular compra</button>
+        <div class="nav-divider"></div>
+        <div class="sidebar-caption small">DESENVOLVIMENTO</div>
+        <button class="nav-item" data-page="education"><span class="nav-symbol">◈</span> Educação financeira</button>
+        <button class="nav-item" data-page="faq"><span class="nav-symbol">?</span> Perguntas frequentes</button>
+        <button class="nav-item" data-page="profile"><span class="nav-symbol">♙</span> Meu perfil</button>
+        <button class="nav-item" data-page="exports"><span class="nav-symbol">↧</span> Relatórios</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="local-chip"><span class="local-light"></span> Dados armazenados localmente</div><button id="logout-button" class="logout-btn">↪ Sair da conta</button></div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-toggle" aria-label="Abrir menu">☰</button>
+        <div class="breadcrumb">BEACON <span>/</span> <strong id="breadcrumb-title">Visão geral</strong></div>
+        <div class="topbar-right"><span class="status-tag"><span class="local-light"></span> Modo local</span><span class="topbar-separator"></span><span id="user-initials" class="user-avatar">B</span><span id="user-name" class="user-name">Usuário</span></div>
+      </header>
+      <main class="main-content">
+        <section class="app-page active" id="page-dashboard">
+          <div class="page-heading"><div><div class="eyebrow">SEU PAINEL FINANCEIRO</div><h1>Visão geral <span class="heading-glow">✦</span></h1><p>Entenda sua situação financeira e acompanhe seus objetivos.</p></div><div class="heading-actions"><label class="month-field">Mês de referência<input id="dashboard-month" type="month"></label><button class="btn btn-primary" data-goto="transactions">+ Nova transação</button></div></div>
+          <div class="metric-grid">
+            <article class="metric-card purple-accent"><span>Receitas do mês</span><strong id="metric-income">R$ 0,00</strong><small>Total recebido no período</small><div class="metric-icon">↗</div></article>
+            <article class="metric-card crimson-accent"><span>Despesas do mês</span><strong id="metric-expense">R$ 0,00</strong><small>Saídas registradas</small><div class="metric-icon">↘</div></article>
+            <article class="metric-card blue-accent"><span>Saldo disponível</span><strong id="metric-balance">R$ 0,00</strong><small>Receitas menos despesas</small><div class="metric-icon">≈</div></article>
+            <article class="metric-card pink-accent"><span>Gastos opcionais</span><strong id="metric-optional">R$ 0,00</strong><small>Despesas que podem ser revistas</small><div class="metric-icon">◇</div></article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="panel spending-panel"><div class="panel-head"><div><h3>Gastos por categoria</h3><p>Distribuição das suas despesas no mês</p></div><span class="panel-tag">ANÁLISE</span></div><div class="donut-layout"><div id="donut-chart" class="donut-chart"><div class="donut-hole"><span>Total de despesas</span><strong id="donut-total">R$ 0,00</strong></div></div><div id="spending-legend" class="spending-legend"></div></div></article>
+            <article class="panel trend-panel"><div class="panel-head"><div><h3>Evolução financeira</h3><p>Receitas e despesas dos últimos seis meses</p></div><span class="panel-tag">HISTÓRICO</span></div><div id="trend-chart" class="trend-chart"></div><div class="chart-footer"><span><i class="chart-dot purple-bg"></i> Receitas</span><span><i class="chart-dot crimson-bg"></i> Despesas</span></div></article>
+          </div>
+          <div class="dashboard-bottom">
+            <article class="panel summary-panel"><div class="panel-head"><div><h3>Seu planejamento</h3><p>Metas e ações recomendadas</p></div></div><div class="summary-figure"><div class="summary-ring">◎</div><div><span>Reserva mensal necessária</span><strong id="summary-monthly">R$ 0,00</strong></div></div><div id="summary-advice" class="summary-advice">Cadastre uma meta para visualizar seu planejamento.</div><button class="link-button" data-goto="planning">Analisar plano de economia <span>→</span></button></article>
+            <article class="panel summary-panel"><div class="panel-head"><div><h3>Educação para você</h3><p>Materiais recomendados para seu perfil</p></div></div><div id="dashboard-recommendations" class="recommendation-mini"></div><button class="link-button" data-goto="education">Ver conteúdos educativos <span>→</span></button></article>
+            <article class="panel summary-panel"><div class="panel-head"><div><h3>Seu próximo passo</h3><p>Antecipe o impacto de uma decisão</p></div></div><div class="purchase-teaser"><span class="teaser-icon">▣</span><strong>Essa compra cabe no orçamento?</strong><p>Simule compras à vista ou parceladas antes de assumir um compromisso.</p></div><button class="btn btn-outline btn-wide" data-goto="purchase">Abrir simulador →</button></article>
+          </div>
+          <div id="empty-help" class="empty-help" hidden><strong>Comece com seus primeiros lançamentos</strong><p>Registre receitas e despesas ou carregue dados fictícios para conhecer o painel.</p><button id="load-demo-button" class="btn btn-outline">Carregar dados fictícios de demonstração</button></div>
+        </section>
+
+        <section class="app-page" id="page-transactions">
+          <div class="page-heading"><div><div class="eyebrow">MOVIMENTAÇÕES</div><h1>Transações</h1><p>Registre receitas e despesas com clareza e controle.</p></div><button class="btn btn-outline" id="refresh-transactions">Atualizar lista ↻</button></div>
+          <div class="two-column-form"><article class="panel"><div class="panel-head"><div><h3>Novo lançamento</h3><p>Os valores são armazenados em centavos no SQLite.</p></div></div><form id="transaction-form" class="form-grid"><label>Tipo<select name="kind" id="transaction-kind"><option value="despesa">Despesa</option><option value="receita">Receita</option></select></label><label>Valor (R$)<input required name="amount" type="text" inputmode="decimal" placeholder="150,00"></label><label>Categoria<input required name="category" maxlength="60" placeholder="Ex.: Alimentação"></label><label>Data<input required name="date" type="date" id="transaction-date"></label><label class="full-column">Descrição<input name="description" maxlength="160" placeholder="Ex.: Compras no mercado"></label><label class="check-label full-column" id="optional-label"><input name="optional" type="checkbox"> Este gasto é opcional (pode ser reduzido)</label><div class="full-column"><button class="btn btn-primary" type="submit">Salvar lançamento →</button></div></form></article><article class="panel info-card"><span class="eyebrow">COMO ORGANIZAR</span><h3>Uma boa classificação ajuda a tomar melhores decisões.</h3><p>Marque como opcionais apenas as despesas que você realmente poderia reduzir. O Beacon usa essa informação para sugerir cortes quando houver metas cadastradas.</p><div class="info-line"><span>◈</span> Gastos essenciais podem ser protegidos no perfil.</div><div class="info-line"><span>◈</span> O sistema não acessa contas bancárias.</div></article></div>
+          <article class="panel table-panel"><div class="panel-head"><div><h3>Histórico de transações</h3><p>Até 1.000 lançamentos mais recentes por consulta.</p></div><label class="month-field">Filtrar mês<input type="month" id="transactions-month"></label></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th></th></tr></thead><tbody id="transaction-rows"></tbody></table></div></article>
+        </section>
+
+        <section class="app-page" id="page-goals">
+          <div class="page-heading"><div><div class="eyebrow">OBJETIVOS</div><h1>Minhas metas</h1><p>Transforme planos em aportes mensais possíveis.</p></div></div>
+          <div class="two-column-form"><article class="panel"><div class="panel-head"><div><h3>Criar meta financeira</h3><p>Cadastre o valor e o prazo que deseja alcançar.</p></div></div><form id="goal-form" class="form-grid"><label class="full-column">Nome da meta<input required name="name" maxlength="120" placeholder="Ex.: Meu primeiro notebook"></label><label>Valor-alvo (R$)<input required name="target" inputmode="decimal" placeholder="3.000,00"></label><label>Já reservado (R$)<input name="saved" inputmode="decimal" value="0"></label><label>Prazo<input required name="deadline" type="date" id="goal-deadline"></label><div class="full-column"><button class="btn btn-primary" type="submit">Criar meta →</button></div></form></article><article class="panel info-card"><span class="eyebrow">PLANEJAMENTO CONSCIENTE</span><h3>Passo a passo em direção aos seus objetivos.</h3><p>O Beacon divide o valor restante pelos meses até a data informada. Não inclui juros, rentabilidade ou promessas de ganhos.</p><div class="info-line"><span>◎</span> Atualize o valor reservado conforme economizar.</div><div class="info-line"><span>◎</span> Consulte o plano de economia para sugestões.</div></article></div>
+          <div id="goals-list" class="goal-grid"></div>
+        </section>
+
+        <section class="app-page" id="page-planning"><div class="page-heading"><div><div class="eyebrow">PLANEJAMENTO MATEMÁTICO</div><h1>Plano de economia</h1><p>Sugestões objetivas usando suas metas, receitas e despesas opcionais.</p></div></div><div id="planning-content"></div></section>
+
+        <section class="app-page" id="page-purchase"><div class="page-heading"><div><div class="eyebrow">DECISÕES COM SEGURANÇA</div><h1>Simulador de compras</h1><p>Antes de comprar, veja o impacto da decisão no seu orçamento e nas metas.</p></div></div>
+          <div class="two-column-form"><article class="panel"><div class="panel-head"><div><h3>Configure sua compra</h3><p>Nenhuma simulação altera suas transações reais.</p></div></div><form id="purchase-form" class="form-grid"><label class="full-column">Nome da compra (apenas referência)<input name="label" maxlength="80" placeholder="Ex.: Notebook para estudos"></label><label>Valor total da compra (R$)<input required name="amount" inputmode="decimal" placeholder="900,00"></label><label>Número de parcelas<input name="installments" required type="number" min="1" max="60" value="1"></label><label>Juros mensais (%)<input name="monthlyRate" inputmode="decimal" value="0" placeholder="Ex.: 2,5"></label><label>Mês-base do orçamento<input name="month" required type="month" id="purchase-month"></label><div class="full-column"><button class="btn btn-primary" type="submit">Simular impacto da compra →</button></div></form><div class="purchase-demo-box"><div><strong>Experimentar com dados fictícios</strong><p>Adiciona receitas e despesas de exemplo dos últimos três meses à conta atual e preenche uma compra de teste. Os registros serão identificados por “DEMO |”, sem substituir os seus dados.</p></div><button id="purchase-demo-button" class="btn btn-outline" type="button">Carregar dados fictícios para teste</button><p id="purchase-demo-status" class="purchase-demo-status" role="status" aria-live="polite" hidden></p></div></article><article class="panel info-card"><span class="eyebrow">DICA DO BEACON</span><h3>O impacto de uma compra vai além da parcela.</h3><p>Vamos comparar o valor de cada parcela à sua folga mensal após as despesas e os aportes destinados às metas.</p><div class="info-line"><span>◇</span> Juros são simulações, não propostas de crédito.</div><div class="info-line"><span>◇</span> O orçamento-base é repetido nos meses futuros.</div></article></div><div id="purchase-results" hidden></div>
+        </section>
+
+        <section class="app-page" id="page-education"><div class="page-heading"><div><div class="eyebrow">APRENDIZADO CONTEXTUAL</div><h1>Educação financeira</h1><p>Conteúdos gratuitos para decisões financeiras mais conscientes.</p></div></div><div class="panel recommendation-panel"><div class="panel-head"><div><h3>Recomendado para você</h3><p>Seleção baseada em regras e em suas informações locais — sem IA generativa.</p></div></div><div id="education-recommendations" class="education-recs"></div></div><div class="section-subhead"><h3>Biblioteca de conteúdos</h3><span>Textos didáticos e fontes</span></div><div id="materials-grid" class="materials-grid"></div><article id="reader-panel" class="panel reader-panel" hidden><div class="panel-head"><div><h3 id="reader-title">Material</h3><p>Conteúdo educativo</p></div><button id="reader-close" class="btn btn-outline">Fechar leitura</button></div><div id="reader-content" class="reader-content"></div></article></section>
+
+        <section class="app-page" id="page-faq"><div class="page-heading"><div><div class="eyebrow">CENTRAL DE AJUDA</div><h1>Perguntas frequentes</h1><p>Respostas predefinidas sobre o Beacon e as funcionalidades do MVP.</p></div></div><article class="panel"><div class="faq-search"><input id="faq-search" placeholder="Pesquisar dúvidas: metas, compras, dados..." aria-label="Pesquisar perguntas frequentes"></div><div id="faq-list" class="faq-list"></div></article></section>
+
+        <section class="app-page" id="page-profile"><div class="page-heading"><div><div class="eyebrow">PERSONALIZAÇÃO</div><h1>Meu perfil</h1><p>Ajuste seu modo de uso e proteja gastos essenciais.</p></div></div><div class="two-column-form"><article class="panel"><div class="panel-head"><div><h3>Modo universitário e estagiário</h3><p>Proteção de categorias e cenário de renda conservadora.</p></div></div><form id="profile-form" class="form-grid"><label>Seu perfil<select name="role"><option value="outro">Padrão</option><option value="universitario">Universitário</option><option value="estagiario">Estagiário</option><option value="ambos">Universitário e estagiário</option></select></label><label>Padrão de renda<select name="incomePattern"><option value="fixa">Fixa</option><option value="variavel">Variável</option><option value="mista">Mista</option></select></label><label class="full-column">Renda conservadora (R$)<input name="conservativeIncome" inputmode="decimal" value="0"></label><label class="full-column">Categorias essenciais protegidas<input name="protectedCategories" maxlength="500" placeholder="Moradia, Alimentação, Transporte, Saúde, Estudos"></label><div class="full-column"><button class="btn btn-primary" type="submit">Salvar minhas preferências →</button></div></form></article><article class="panel info-card"><span class="eyebrow">PRIVACIDADE</span><h3>Controle dos dados nas suas mãos.</h3><div class="profile-data"><span>Nome</span><strong id="profile-name">—</strong><span>E-mail</span><strong id="profile-email">—</strong><span>Armazenamento</span><strong>SQLite local</strong><span>Integração bancária</span><strong>Não disponível</strong><span>Assistente generativo</span><strong>Não disponível neste MVP</strong></div><p>O arquivo <code>beacon.db</code> não possui criptografia integral. Utilize dados fictícios em demonstrações públicas.</p></article></div></section>
+
+        <section class="app-page" id="page-exports"><div class="page-heading"><div><div class="eyebrow">HISTÓRICO E DOCUMENTOS</div><h1>Relatórios</h1><p>Exporte seus lançamentos sem enviar dados a serviços externos.</p></div></div><div class="export-grid"><article class="panel export-card"><span class="export-icon">⇩</span><h3>Exportação CSV</h3><p>Baixe todas as transações em formato compatível com Excel e outras planilhas.</p><button id="export-csv" class="btn btn-primary">Baixar CSV →</button></article><article class="panel export-card"><span class="export-icon">▤</span><h3>Relatório PDF</h3><p>Resumo de receitas, despesas e transações de um mês selecionado.</p><label class="month-field">Mês do relatório<input id="export-month" type="month"></label><button id="export-pdf" class="btn btn-outline">Baixar PDF →</button></article></div></section>
+      </main>
+      <footer class="app-footer">BEACON MVP · Aplicativo local · Cálculos ilustrativos, não aconselhamento financeiro</footer>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="confirm-overlay" class="confirm-overlay" hidden><div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h3 id="confirm-title">Confirmar exclusão?</h3><p id="confirm-text">Esta ação não poderá ser desfeita.</p><div class="confirm-actions"><button id="confirm-no" class="btn btn-outline">Cancelar</button><button id="confirm-yes" class="btn btn-danger">Excluir</button></div></div></div>
+</body>
+</html>

@@ -26,7 +26,7 @@
 | Código-fonte integral no repositório | **Preparado, envio pendente de verificação** | Arquivos de fonte estão completos neste pacote. Necessário confirmar publicação na branch padrão do GitHub. |
 | Histórico de commits | **Depende do GitHub real** | Não foi possível verificar o histórico do repositório e não foram gerados commits artificiais. |
 | Trabalho em equipe | **Depende de evidências reais** | Registrar no GitHub issues, contribuições, autoria e/ou revisões; preencher a seção abaixo. |
-| README, documentação e testes | **Sim no pacote** | `README.md`, este relato, guia de equipe, checklist e 22 testes locais aprovados. |
+| README, documentação e testes | **Sim no pacote** | `README.md`, este relato, guia de equipe, checklist e 28 testes locais aprovados. |
 
 ## Como o trabalho foi conduzido
 
